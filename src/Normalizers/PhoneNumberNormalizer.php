@@ -22,14 +22,28 @@ class PhoneNumberNormalizer implements NormalizerInterface, DenormalizerInterfac
     public function denormalize($data, $type, $format = null, array $context = [])
     {
         try {
-            return PhoneNumberUtil::getInstance()->parse($data);
+            return $this->validate($data, PhoneNumberUtil::getInstance()->parse($data));
         } catch (NumberParseException $parseException) {
         }
         try {
-            return PhoneNumberUtil::getInstance()->parse($data, $context['countryCode'] ?? $this->defaultCountryCode);
+            return $this->validate(
+                $data,
+                PhoneNumberUtil::getInstance()->parse(
+                    $data,
+                    $context['countryCode'] ?? $this->defaultCountryCode
+                )
+            );
         } catch (NumberParseException $parseException) {
             throw new InvalidValueForValueObjectException($data, PhoneNumber::class);
         }
+    }
+
+    private function validate($data, PhoneNumber $phoneNumber): PhoneNumber
+    {
+        if ($phoneNumber->hasCountryCode() && $phoneNumber->getCountryCode() !== PhoneNumberUtil::UNKNOWN_REGION) {
+            return $phoneNumber;
+        }
+        throw new InvalidValueForValueObjectException($data, PhoneNumber::class);
     }
 
     public function supportsDenormalization($data, $type, $format = null)
