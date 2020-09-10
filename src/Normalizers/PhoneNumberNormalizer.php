@@ -9,6 +9,7 @@ use libphonenumber\PhoneNumberUtil;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use W2w\Lib\Apie\Exceptions\InvalidValueForValueObjectException;
+use W2w\Lib\ApiePhoneNumberPlugin\Interfaces\HasCountryCodeInterface;
 
 class PhoneNumberNormalizer implements NormalizerInterface, DenormalizerInterface
 {
@@ -30,7 +31,7 @@ class PhoneNumberNormalizer implements NormalizerInterface, DenormalizerInterfac
                 $data,
                 PhoneNumberUtil::getInstance()->parse(
                     $data,
-                    $context['countryCode'] ?? $this->defaultCountryCode
+                    $this->determineCountryCode($context)
                 )
             );
         } catch (NumberParseException $parseException) {
@@ -60,5 +61,19 @@ class PhoneNumberNormalizer implements NormalizerInterface, DenormalizerInterfac
     public function supportsNormalization($data, $format = null)
     {
         return $data instanceof PhoneNumber;
+    }
+
+    private function determineCountryCode(array $context): string
+    {
+        if (isset($context['countryCode']) && is_string($context['countryCode'])) {
+            return $context['countryCode'];
+        }
+        if (!empty($context['object_hierarchy']) && $context['object_hierarchy'] && is_array($context['object_hierarchy'])) {
+            $lastObject = $context['object_hierarchy'][count($context['object_hierarchy']) - 1];
+            if ($lastObject instanceof HasCountryCodeInterface) {
+                return $lastObject->getCountryCode()->toNative();
+            }
+        }
+        return $this->defaultCountryCode;
     }
 }
